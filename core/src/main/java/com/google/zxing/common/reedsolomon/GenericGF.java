@@ -43,7 +43,6 @@ public final class GenericGF {
   private final int[] logTable;
   private final GenericGFPoly zero;
   private final GenericGFPoly one;
-  private final int size;
   private final int primitive;
   private final int generatorBase;
 
@@ -60,7 +59,6 @@ public final class GenericGF {
    */
   public GenericGF(int primitive, int size, int b) {
     this.primitive = primitive;
-    this.size = size;
     this.generatorBase = b;
 
     expTable = new int[size];
@@ -138,7 +136,7 @@ public final class GenericGF {
     if (a == 0) {
       throw new ArithmeticException();
     }
-    return expTable[size - logTable[a] - 1];
+    return expTable[expTable.length - logTable[a] - 1];
   }
 
   /**
@@ -148,11 +146,11 @@ public final class GenericGF {
     if (a == 0 || b == 0) {
       return 0;
     }
-    return expTable[(logTable[a] + logTable[b]) % (size - 1)];
+    return expTable[(logTable[a] + logTable[b]) % (expTable.length - 1)];
   }
 
   public int getSize() {
-    return size;
+    return expTable.length;
   }
 
   public int getGeneratorBase() {
@@ -161,7 +159,7 @@ public final class GenericGF {
 
   @Override
   public String toString() {
-    return "GF(0x" + Integer.toHexString(primitive) + ',' + size + ')';
+    return "GF(0x" + Integer.toHexString(primitive) + ',' + expTable.length + ')';
   }
 
 }
