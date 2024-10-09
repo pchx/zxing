@@ -95,7 +95,7 @@ public final class ReedSolomonDecoder {
       if (position < 0) {
         throw new ReedSolomonException("Bad error location");
       }
-      received[position] = GenericGF.addOrSubtract(received[position], errorMagnitudes[i]);
+      received[position] = field.subtract(received[position], errorMagnitudes[i]);
     }
     return errorLocations.length;
   }
@@ -133,11 +133,11 @@ public final class ReedSolomonDecoder {
       while (r.getDegree() >= rLast.getDegree() && !r.isZero()) {
         int degreeDiff = r.getDegree() - rLast.getDegree();
         int scale = field.multiply(r.getCoefficient(r.getDegree()), dltInverse);
-        q = q.addOrSubtract(field.buildMonomial(degreeDiff, scale));
-        r = r.addOrSubtract(rLast.multiplyByMonomial(degreeDiff, scale));
+        q = q.add(field.buildMonomial(degreeDiff, scale));
+        r = r.subtract(rLast.multiplyByMonomial(degreeDiff, scale));
       }
 
-      t = q.multiply(tLast).addOrSubtract(tLastLast);
+      t = q.multiply(tLast).subtract(tLastLast);
 
       if (r.getDegree() >= rLast.getDegree()) {
         throw new IllegalStateException("Division algorithm failed to reduce polynomial? " +

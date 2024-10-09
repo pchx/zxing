@@ -103,19 +103,20 @@ final class GenericGFPoly {
       // Just the sum of the coefficients
       int result = 0;
       for (int coefficient : coefficients) {
-        result = GenericGF.addOrSubtract(result, coefficient);
+        result = field.add(result, coefficient);
       }
       return result;
     }
+    // Evaluate using Horner's method:
     int result = coefficients[0];
     int size = coefficients.length;
     for (int i = 1; i < size; i++) {
-      result = GenericGF.addOrSubtract(field.multiply(a, result), coefficients[i]);
+      result = field.add(field.multiply(a, result), coefficients[i]);
     }
     return result;
   }
 
-  GenericGFPoly addOrSubtract(GenericGFPoly other) {
+  GenericGFPoly add(GenericGFPoly other) {
     if (!field.equals(other.field)) {
       throw new IllegalArgumentException("GenericGFPolys do not have same GenericGF field");
     }
@@ -133,16 +134,31 @@ final class GenericGFPoly {
       smallerCoefficients = largerCoefficients;
       largerCoefficients = temp;
     }
-    int[] sumDiff = new int[largerCoefficients.length];
+    int[] sum = new int[largerCoefficients.length];
     int lengthDiff = largerCoefficients.length - smallerCoefficients.length;
     // Copy high-order terms only found in higher-degree polynomial's coefficients
-    System.arraycopy(largerCoefficients, 0, sumDiff, 0, lengthDiff);
+    System.arraycopy(largerCoefficients, 0, sum, 0, lengthDiff);
 
     for (int i = lengthDiff; i < largerCoefficients.length; i++) {
-      sumDiff[i] = GenericGF.addOrSubtract(smallerCoefficients[i - lengthDiff], largerCoefficients[i]);
+      sum[i] = field.add(smallerCoefficients[i - lengthDiff], largerCoefficients[i]);
     }
 
-    return new GenericGFPoly(field, sumDiff);
+    return new GenericGFPoly(field, sum);
+  }
+
+  GenericGFPoly subtract(GenericGFPoly other) {
+    if (other.isZero()) {
+      return this;
+    }
+    return add(other.negate());
+  }
+
+  GenericGFPoly negate() {
+    int[] result = new int[coefficients.length];
+    for (int i = 0; i < coefficients.length; i++) {
+      result[i] = field.subtract(0, coefficients[i]);
+    }
+    return new GenericGFPoly(field, result);
   }
 
   GenericGFPoly multiply(GenericGFPoly other) {
@@ -160,8 +176,7 @@ final class GenericGFPoly {
     for (int i = 0; i < aLength; i++) {
       int aCoeff = aCoefficients[i];
       for (int j = 0; j < bLength; j++) {
-        product[i + j] = GenericGF.addOrSubtract(product[i + j],
-            field.multiply(aCoeff, bCoefficients[j]));
+        product[i + j] = field.add(product[i + j], field.multiply(aCoeff, bCoefficients[j]));
       }
     }
     return new GenericGFPoly(field, product);
@@ -208,16 +223,17 @@ final class GenericGFPoly {
     GenericGFPoly quotient = field.getZero();
     GenericGFPoly remainder = this;
 
+    // Find quotient and remainder using Euclidean long division:
     int denominatorLeadingTerm = other.getCoefficient(other.getDegree());
     int inverseDenominatorLeadingTerm = field.inverse(denominatorLeadingTerm);
 
     while (remainder.getDegree() >= other.getDegree() && !remainder.isZero()) {
+      // Pick k*x^n such that (k*x^n * denominator) cancels the leading term of the remainder.
       int degreeDifference = remainder.getDegree() - other.getDegree();
       int scale = field.multiply(remainder.getCoefficient(remainder.getDegree()), inverseDenominatorLeadingTerm);
-      GenericGFPoly term = other.multiplyByMonomial(degreeDifference, scale);
-      GenericGFPoly iterationQuotient = field.buildMonomial(degreeDifference, scale);
-      quotient = quotient.addOrSubtract(iterationQuotient);
-      remainder = remainder.addOrSubtract(term);
+      // Subtract dividend times k*x^n from the remainder to reduce its degree, and add k*x^n to the quotient.
+      remainder = remainder.add(other.multiplyByMonomial(degreeDifference, field.subtract(0, scale)));
+      quotient = quotient.add(field.buildMonomial(degreeDifference, scale));
     }
 
     return new GenericGFPoly[] { quotient, remainder };
