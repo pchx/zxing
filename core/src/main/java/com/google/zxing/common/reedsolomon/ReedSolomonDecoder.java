@@ -116,33 +116,28 @@ public final class ReedSolomonDecoder {
 
     // Run Euclidean algorithm until r's degree is less than R/2
     while (2 * r.getDegree() >= R) {
-      GenericGFPoly rLastLast = rLast;
-      GenericGFPoly tLastLast = tLast;
-      rLast = r;
-      tLast = t;
-
-      // Divide rLastLast by rLast, with quotient in q and remainder in r
-      if (rLast.isZero()) {
+      if (r.isZero()) {
         // Oops, Euclidean algorithm already terminated?
-        throw new ReedSolomonException("r_{i-1} was zero");
-      }
-      r = rLastLast;
-      GenericGFPoly q = field.getZero();
-      int denominatorLeadingTerm = rLast.getCoefficient(rLast.getDegree());
-      int dltInverse = field.inverse(denominatorLeadingTerm);
-      while (r.getDegree() >= rLast.getDegree() && !r.isZero()) {
-        int degreeDiff = r.getDegree() - rLast.getDegree();
-        int scale = field.multiply(r.getCoefficient(r.getDegree()), dltInverse);
-        q = q.add(field.buildMonomial(degreeDiff, scale));
-        r = r.subtract(rLast.multiplyByMonomial(degreeDiff, scale));
+        throw new ReedSolomonException("r was zero");
       }
 
-      t = q.multiply(tLast).subtract(tLastLast);
+      // Divide r_last by r, placing the quotient in q and remainder in r, and
+      // slide r's previous value to r_last.
+      //  (r_last, q, r) := (r, r_last / r, r_last % r)
+      GenericGFPoly results[] = rLast.divide(r);
+      GenericGFPoly q = results[0];
+      rLast = r;
+      r = results[1];
 
       if (r.getDegree() >= rLast.getDegree()) {
-        throw new IllegalStateException("Division algorithm failed to reduce polynomial? " +
-          "r: " + r + ", rLast: " + rLast);
+        throw new IllegalStateException("Division algorithm failed to reduce polynomial?");
       }
+
+      // Similarly, update t and t_last like so:
+      //  (t_last, t) := (t, t_last - (q * t)).
+      GenericGFPoly tTmp = t;
+      t = tLast.subtract(q.multiply(t));
+      tLast = tTmp;
     }
 
     int sigmaTildeAtZero = t.getCoefficient(0);
